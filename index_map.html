@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地图标记 - MapMark</title>
+    <script type="text/javascript">
+  window._AMapSecurityConfig = {
+    securityJsCode: "12e7d4eafb2097cfa9f59cb594f84578",
+  };
+    </script>
+    <!-- 高德地图 JS API -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=928f7cd290b7c65e1a0eff967132a2a9"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #dbeafe;
+            --danger: #ef4444;
+            --danger-dark: #dc2626;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 12px;
+            --sidebar-width: 340px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header .subtitle {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 4px;
+        }
+
+        .search-box {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .marker-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .marker-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .marker-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .marker-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .marker-item {
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 1px solid transparent;
+            margin-bottom: 4px;
+        }
+
+        .marker-item:hover {
+            background: var(--bg);
+            border-color: var(--border);
+        }
+
+        .marker-item.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
+
+        .marker-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .marker-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            color: white;
+        }
+
+        .marker-item-title {
+            font-size: 13px;
+            font-weight: 600;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .marker-item-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 36px;
+        }
+
+        .marker-item-meta .note-count {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .marker-item-preview {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 36px;
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: var(--danger-dark);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        /* Map */
+        #map {
+            flex: 1;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Toggle sidebar button (mobile) */
+        .toggle-sidebar {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            font-size: 18px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+
+        .empty-state p {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            width: 90%;
+            max-width: 460px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: modalIn 0.2s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 4px;
+            border-radius: 6px;
+            transition: all 0.15s;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+        }
+
+        .coord-display {
+            background: var(--bg);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            display: flex;
+            gap: 16px;
+        }
+
+        .coord-display span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Color picker */
+        .color-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-option.selected {
+            border-color: var(--text);
+            transform: scale(1.1);
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        /* Notes history */
+        .notes-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .note-card {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .note-card .note-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .note-card .note-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .note-card .note-delete {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .note-card .note-delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .add-note-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .add-note-section textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .add-note-section textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        /* Leaflet custom marker */
+        .custom-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: white;
+            font-size: 16px;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .custom-marker:hover {
+            transform: scale(1.15);
+            z-index: 1000;
+        }
+
+        /* Leaflet popup customization */
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 16px;
+            font-size: 13px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            z-index: 3000;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-lg);
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Stats bar */
+        .stats-bar {
+            padding: 8px 16px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 12px;
+        }
+
+        .stats-bar .stat {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .toggle-sidebar {
+                display: block;
+            }
+
+            .sidebar {
+                width: 280px;
+            }
+        }
+
+        /* Click hint */
+        .click-hint {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: var(--surface);
+            padding: 8px 14px;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            font-size: 12px;
+            color: var(--text-secondary);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .click-hint .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Toggle button for mobile -->
+        <button class="toggle-sidebar" onclick="toggleSidebar()">☰</button>
+
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>📍 MapMark</h1>
+                <div class="subtitle">地图标记管理工具</div>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索标记或备注..." oninput="renderMarkerList()" />
+            </div>
+
+            <div class="stats-bar" id="statsBar">
+                <span class="stat">📌 <span id="markerCount">0</span> 个标记</span>
+                <span class="stat">📝 <span id="noteCount">0</span> 条备注</span>
+            </div>
+
+            <div class="marker-list" id="markerList">
+                <!-- Marker items will be rendered here -->
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn btn-secondary btn-sm" onclick="exportData()">📤 导出</button>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">📥 导入</button>
+                <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)" />
+                <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑️ 清空</button>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div id="map">
+            <div class="click-hint" id="clickHint">
+                <span class="dot"></span>
+                <span>点击地图任意位置添加标记</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Marker Modal -->
+    <div class="modal-overlay" id="addMarkerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📍 添加新标记</h3>
+                <button class="modal-close" onclick="closeModal('addMarkerModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>坐标位置</label>
+                    <div class="coord-display">
+                        <span>纬度: <strong id="newMarkerLat"></strong></span>
+                        <span>经度: <strong id="newMarkerLng"></strong></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>标记名称</label>
+                    <input type="text" id="markerTitle" placeholder="给这个标记起个名字..." maxlength="50" />
+                </div>
+                <div class="form-group">
+                    <label>标记颜色</label>
+                    <div class="color-picker" id="colorPicker">
+                        <div class="color-option selected" style="background:#ef4444" data-color="#ef4444" onclick="selectColor(this)">📍</div>
+                        <div class="color-option" style="background:#f59e0b" data-color="#f59e0b" onclick="selectColor(this)">📍</div>
+                        <div class="color-option" style="background:#10b981" data-color="#10b981" onclick="selectColor(this)">📍</div>
+                        <div class="color-option" style="background:#3b82f6" data-color="#3b82f6" onclick="selectColor(this)">📍</div>
+                        <div class="color-option" style="background:#8b5cf6" data-color="#8b5cf6" onclick="selectColor(this)">📍</div>
+                        <div class="color-option" style="background:#ec4899" data-color="#ec4899" onclick="selectColor(this)">📍</div>
+                        <div class="color-option" style="background:#6b7280" data-color="#6b7280" onclick="selectColor(this)">📍</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>备注信息</label>
+                    <textarea id="markerNote" placeholder="输入备注内容，比如：这里有什么、为什么标记..." maxlength="2000"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('addMarkerModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveNewMarker()">💾 保存标记</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Marker Modal -->
+    <div class="modal-overlay" id="viewMarkerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="viewMarkerTitle">📍 标记详情</h3>
+                <button class="modal-close" onclick="closeModal('viewMarkerModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="coord-display" style="margin-bottom:16px">
+                    <span>纬度: <strong id="viewMarkerLat"></strong></span>
+                    <span>经度: <strong id="viewMarkerLng"></strong></span>
+                </div>
+
+                <div class="form-group" style="margin-bottom:12px">
+                    <label>历史备注 (<span id="noteCountLabel">0</span>)</label>
+                </div>
+
+                <div class="notes-history" id="notesHistory">
+                    <!-- Notes will be rendered here -->
+                </div>
+
+                <div class="add-note-section">
+                    <div class="form-group" style="margin-bottom:8px">
+                        <label>添加新备注</label>
+                    </div>
+                    <textarea id="newNoteText" placeholder="输入新的备注内容..." maxlength="2000"></textarea>
+                    <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addNoteToMarker()">➕ 添加备注</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteCurrentMarker()">🗑️ 删除标记</button>
+                <button class="btn btn-secondary" onclick="closeModal('viewMarkerModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== State ====================
+        let map;
+        let markers = []; // {id, lat, lng, title, color, notes: [{id, text, time}]}
+        let amapMarkers = {}; // id -> AMap.Marker
+        let currentNewMarker = null; // {lat, lng}
+        let currentViewMarkerId = null;
+        let selectedColor = '#ef4444';
+        let activeMarkerId = null;
+
+        const STORAGE_KEY = 'mapmark_markers';
+
+        // ==================== Coordinate Conversion (WGS-84 to GCJ-02) ====================
+        function wgs84ToGcj02(lng, lat) {
+            const PI = Math.PI;
+            const a = 6378245.0;
+            const ee = 0.00669342162296594323;
+
+            if (outOfChina(lng, lat)) {
+                return { lng: lng, lat: lat };
+            }
+
+            let dLat = transformLat(lng - 105.0, lat - 35.0);
+            let dLng = transformLng(lng - 105.0, lat - 35.0);
+            const radLat = lat / 180.0 * PI;
+            let magic = Math.sin(radLat);
+            magic = 1 - ee * magic * magic;
+            const sqrtMagic = Math.sqrt(magic);
+            dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * PI);
+            dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * PI);
+
+            return {
+                lng: lng + dLng,
+                lat: lat + dLat
+            };
+        }
+
+        function transformLat(x, y) {
+            let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+            ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+            ret += (20.0 * Math.sin(y * Math.PI) + 40.0 * Math.sin(y / 3.0 * Math.PI)) * 2.0 / 3.0;
+            ret += (160.0 * Math.sin(y / 12.0 * Math.PI) + 320 * Math.sin(y * Math.PI / 30.0)) * 2.0 / 3.0;
+            return ret;
+        }
+
+        function transformLng(x, y) {
+            let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+            ret += (20.0 * Math.sin(6.0 * x * Math.PI) + 20.0 * Math.sin(2.0 * x * Math.PI)) * 2.0 / 3.0;
+            ret += (20.0 * Math.sin(x * Math.PI) + 40.0 * Math.sin(x / 3.0 * Math.PI)) * 2.0 / 3.0;
+            ret += (150.0 * Math.sin(x / 12.0 * Math.PI) + 300.0 * Math.sin(x / 30.0 * Math.PI)) * 2.0 / 3.0;
+            return ret;
+        }
+
+        function outOfChina(lng, lat) {
+            return !(lng > 73.66 && lng < 135.05 && lat > 3.86 && lat < 53.55);
+        }
+
+        // ==================== Init ====================
+        function initMap() {
+            map = new AMap.Map('map', {
+                zoom: 5,
+                center: [116.4074, 39.9042], // Default: Beijing, China (GCJ-02)
+                viewMode: '2D',
+                resizeEnable: true
+            });
+
+            map.on('click', function(e) {
+                const lng = e.lnglat.getLng();
+                const lat = e.lnglat.getLat();
+                currentNewMarker = { lat: lat, lng: lng };
+                document.getElementById('newMarkerLat').textContent = lat.toFixed(6);
+                document.getElementById('newMarkerLng').textContent = lng.toFixed(6);
+                document.getElementById('markerTitle').value = '';
+                document.getElementById('markerNote').value = '';
+
+                selectedColor = '#ef4444';
+                document.querySelectorAll('.color-option').forEach(el => {
+                    el.classList.toggle('selected', el.dataset.color === selectedColor);
+                });
+
+                openModal('addMarkerModal');
+                setTimeout(() => document.getElementById('markerTitle').focus(), 100);
+            });
+
+            loadMarkers();
+            renderAllMarkers();
+            renderMarkerList();
+            updateStats();
+
+            map.on('click', function() {
+                const hint = document.getElementById('clickHint');
+                if (hint) {
+                    hint.style.transition = 'opacity 0.5s';
+                    hint.style.opacity = '0';
+                    setTimeout(() => hint.remove(), 500);
+                }
+            }, { once: true });
+        }
+
+        // ==================== Storage ====================
+        function loadMarkers() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    markers = JSON.parse(data);
+                }
+            } catch (e) {
+                console.error('Failed to load markers:', e);
+                markers = [];
+            }
+        }
+
+        function saveMarkers() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(markers));
+            } catch (e) {
+                console.error('Failed to save markers:', e);
+                showToast('保存失败，存储空间可能不足');
+            }
+        }
+
+        // ==================== Marker Operations ====================
+        function saveNewMarker() {
+            if (!currentNewMarker) return;
+
+            const title = document.getElementById('markerTitle').value.trim() || '未命名标记';
+            const noteText = document.getElementById('markerNote').value.trim();
+
+            const newMarker = {
+                id: 'm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                lat: currentNewMarker.lat,
+                lng: currentNewMarker.lng,
+                title: title,
+                color: selectedColor,
+                notes: []
+            };
+
+            if (noteText) {
+                newMarker.notes.push({
+                    id: 'n_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    text: noteText,
+                    time: new Date().toISOString()
+                });
+            }
+
+            markers.push(newMarker);
+            saveMarkers();
+            renderAllMarkers();
+            renderMarkerList();
+            updateStats();
+            closeModal('addMarkerModal');
+
+            showToast('✅ 标记已添加');
+            currentNewMarker = null;
+
+            // Fly to the new marker
+            map.flyTo([newMarker.lng, newMarker.lat], Math.max(map.getZoom(), 10));
+        }
+
+        function createAmapMarker(markerData) {
+            const icon = new AMap.Icon({
+                size: new AMap.Size(28, 28),
+                image: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='14' fill='${markerData.color}'/%3E%3Ctext x='14' y='19' text-anchor='middle' font-size='16' fill='white'%3E📍%3C/text%3E%3C/svg%3E`,
+                imageSize: new AMap.Size(28, 28)
+            });
+
+            const gm = new AMap.Marker({
+                position: [markerData.lng, markerData.lat],
+                icon: icon,
+                offset: new AMap.Pixel(-14, -14)
+            });
+
+            gm.on('click', function() {
+                openViewModal(markerData.id);
+            });
+
+            return gm;
+        }
+
+        function renderAllMarkers() {
+            Object.values(amapMarkers).forEach(gm => map.remove(gm));
+            amapMarkers = {};
+
+            markers.forEach(m => {
+                amapMarkers[m.id] = createAmapMarker(m);
+                map.add(amapMarkers[m.id]);
+            });
+        }
+
+        function openViewModal(markerId) {
+            const marker = markers.find(m => m.id === markerId);
+            if (!marker) return;
+
+            currentViewMarkerId = markerId;
+            activeMarkerId = markerId;
+
+            document.getElementById('viewMarkerTitle').innerHTML = formatMarkerIcon(marker) + ' ' + escapeHtml(marker.title);
+            document.getElementById('viewMarkerLat').textContent = marker.lat.toFixed(6);
+            document.getElementById('viewMarkerLng').textContent = marker.lng.toFixed(6);
+            document.getElementById('noteCountLabel').textContent = marker.notes.length;
+            document.getElementById('newNoteText').value = '';
+
+            renderNotesHistory(marker);
+            renderMarkerList(); // Update active state
+
+            openModal('viewMarkerModal');
+        }
+
+        function renderNotesHistory(marker) {
+            const container = document.getElementById('notesHistory');
+
+            if (marker.notes.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>暂无备注<br>在下方添加第一条备注</p></div>';
+                return;
+            }
+
+            // Sort notes by time descending (newest first)
+            const sortedNotes = [...marker.notes].sort((a, b) => new Date(b.time) - new Date(a.time));
+
+            container.innerHTML = sortedNotes.map(note => `
+                <div class="note-card" style="border-left-color:${marker.color}">
+                    <button class="note-delete" onclick="deleteNote('${marker.id}', '${note.id}')" title="删除此备注">✕</button>
+                    <div class="note-text">${escapeHtml(note.text)}</div>
+                    <div class="note-time">🕐 ${formatTime(note.time)}</div>
+                </div>
+            `).join('');
+        }
+
+        function addNoteToMarker() {
+            if (!currentViewMarkerId) return;
+
+            const text = document.getElementById('newNoteText').value.trim();
+            if (!text) {
+                showToast('请输入备注内容');
+                return;
+            }
+
+            const marker = markers.find(m => m.id === currentViewMarkerId);
+            if (!marker) return;
+
+            marker.notes.push({
+                id: 'n_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                text: text,
+                time: new Date().toISOString()
+            });
+
+            saveMarkers();
+            renderNotesHistory(marker);
+            renderMarkerList();
+            updateStats();
+
+            document.getElementById('newNoteText').value = '';
+            document.getElementById('noteCountLabel').textContent = marker.notes.length;
+
+            showToast('✅ 备注已添加');
+        }
+
+        function deleteNote(markerId, noteId) {
+            const marker = markers.find(m => m.id === markerId);
+            if (!marker) return;
+
+            marker.notes = marker.notes.filter(n => n.id !== noteId);
+            saveMarkers();
+            renderNotesHistory(marker);
+            renderMarkerList();
+            updateStats();
+            document.getElementById('noteCountLabel').textContent = marker.notes.length;
+
+            showToast('备注已删除');
+        }
+
+        function deleteCurrentMarker() {
+            if (!currentViewMarkerId) return;
+
+            if (!confirm('确定要删除这个标记及其所有备注吗？此操作不可撤销。')) return;
+
+            const id = currentViewMarkerId;
+
+            // Remove from map
+            if (amapMarkers[id]) {
+                map.remove(amapMarkers[id]);
+                delete amapMarkers[id];
+            }
+
+            // Remove from data
+            markers = markers.filter(m => m.id !== id);
+            saveMarkers();
+            renderMarkerList();
+            updateStats();
+
+            closeModal('viewMarkerModal');
+            showToast('标记已删除');
+
+            currentViewMarkerId = null;
+            activeMarkerId = null;
+        }
+
+        function clearAll() {
+            if (markers.length === 0) {
+                showToast('没有标记可清空');
+                return;
+            }
+
+            if (!confirm(`确定要清空所有 ${markers.length} 个标记吗？此操作不可撤销！`)) return;
+
+            markers = [];
+            saveMarkers();
+            renderAllMarkers();
+            renderMarkerList();
+            updateStats();
+
+            showToast('已清空所有标记');
+        }
+
+        // ==================== Sidebar ====================
+        function renderMarkerList() {
+            const container = document.getElementById('markerList');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            let filtered = markers;
+
+            if (searchTerm) {
+                filtered = markers.filter(m => {
+                    if (m.title.toLowerCase().includes(searchTerm)) return true;
+                    return m.notes.some(n => n.text.toLowerCase().includes(searchTerm));
+                });
+            }
+
+            // Sort by latest note time or creation
+            filtered = [...filtered].sort((a, b) => {
+                const aTime = a.notes.length > 0 ? Math.max(...a.notes.map(n => new Date(n.time).getTime())) : 0;
+                const bTime = b.notes.length > 0 ? Math.max(...b.notes.map(n => new Date(n.time).getTime())) : 0;
+                return bTime - aTime;
+            });
+
+            if (filtered.length === 0) {
+                if (searchTerm) {
+                    container.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>未找到匹配的标记</p></div>';
+                } else {
+                    container.innerHTML = '<div class="empty-state"><div class="icon">📍</div><p>还没有标记<br>点击地图开始添加标记吧！</p></div>';
+                }
+                return;
+            }
+
+            container.innerHTML = filtered.map(m => {
+                const latestNote = m.notes.length > 0
+                    ? [...m.notes].sort((a, b) => new Date(b.time) - new Date(a.time))[0]
+                    : null;
+
+                return `
+                    <div class="marker-item ${activeMarkerId === m.id ? 'active' : ''}" onclick="flyToMarker('${m.id}')">
+                        <div class="marker-item-header">
+                            <div class="marker-icon" style="background:${m.color}">📍</div>
+                            <div class="marker-item-title">${escapeHtml(m.title)}</div>
+                        </div>
+                        <div class="marker-item-meta">
+                            <span class="note-count">📝 ${m.notes.length}</span>
+                            <span>🕐 ${formatTime(latestNote ? latestNote.time : null)}</span>
+                        </div>
+                        ${latestNote ? `<div class="marker-item-preview">${escapeHtml(latestNote.text).substring(0, 40)}${latestNote.text.length > 40 ? '...' : ''}</div>` : '<div class="marker-item-preview" style="opacity:0.5">暂无备注</div>'}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function flyToMarker(markerId) {
+            const marker = markers.find(m => m.id === markerId);
+            if (!marker) return;
+
+            map.flyTo([marker.lng, marker.lat], Math.max(map.getZoom(), 12));
+
+            setTimeout(() => {
+                openViewModal(markerId);
+            }, 600);
+        }
+
+        function updateStats() {
+            document.getElementById('markerCount').textContent = markers.length;
+            const totalNotes = markers.reduce((sum, m) => sum + m.notes.length, 0);
+            document.getElementById('noteCount').textContent = totalNotes;
+        }
+
+        // ==================== Color Picker ====================
+        function selectColor(el) {
+            selectedColor = el.dataset.color;
+            document.querySelectorAll('.color-option').forEach(opt => {
+                opt.classList.toggle('selected', opt === el);
+            });
+        }
+
+        // ==================== Modal ====================
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+            if (id === 'viewMarkerModal') {
+                currentViewMarkerId = null;
+            }
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                    if (this.id === 'viewMarkerModal') {
+                        currentViewMarkerId = null;
+                    }
+                }
+            });
+        });
+
+        // ==================== Sidebar Toggle ====================
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== Export / Import ====================
+        function exportData() {
+            if (markers.length === 0) {
+                showToast('没有标记可导出');
+                return;
+            }
+
+            const data = JSON.stringify(markers, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mapmark_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('✅ 已导出 ' + markers.length + ' 个标记');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!Array.isArray(data)) throw new Error('Invalid format');
+
+                    // Merge imported markers
+                    let added = 0;
+                    data.forEach(m => {
+                        if (m.lat && m.lng) {
+                            // Generate new ID to avoid conflicts
+                            m.id = 'm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5) + '_' + added;
+                            if (!m.notes) m.notes = [];
+                            if (!m.color) m.color = '#ef4444';
+                            if (!m.title) m.title = '导入的标记';
+                            markers.push(m);
+                            added++;
+                        }
+                    });
+
+                    saveMarkers();
+                    renderAllMarkers();
+                    renderMarkerList();
+                    updateStats();
+
+                    showToast(`✅ 已导入 ${added} 个标记`);
+                } catch (err) {
+                    showToast('导入失败：文件格式不正确');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset for re-import
+        }
+
+        // ==================== Utils ====================
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function formatTime(isoString) {
+            if (!isoString) return '未知';
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = (now - date) / 1000; // seconds
+
+            if (diff < 60) return '刚刚';
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+            if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+            if (diff < 604800) return Math.floor(diff / 86400) + '天前';
+
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const h = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+
+            if (y === now.getFullYear()) {
+                return `${m}/${d} ${h}:${min}`;
+            }
+            return `${y}/${m}/${d} ${h}:${min}`;
+        }
+
+        function formatMarkerIcon(marker) {
+            return `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${marker.color};color:white;font-size:11px">📍</span>`;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+            }
+            if (e.key === 'Enter' && document.getElementById('addMarkerModal').classList.contains('active')) {
+                if (e.ctrlKey || e.metaKey) {
+                    saveNewMarker();
+                }
+            }
+            if (e.key === 'Enter' && document.getElementById('viewMarkerModal').classList.contains('active')) {
+                if (e.ctrlKey || e.metaKey) {
+                    addNoteToMarker();
+                }
+            }
+        });
+
+        // Enter key to save marker when in title field
+        document.getElementById('markerTitle').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('markerNote').focus();
+            }
+        });
+
+        // Ctrl+Enter in new note textarea to add
+        document.getElementById('newNoteText').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                addNoteToMarker();
+            }
+        });
+
+        // ==================== Start ====================
+        window.addEventListener('load', initMap);
+    </script>
+</body>
+</html>
